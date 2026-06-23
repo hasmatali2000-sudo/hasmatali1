@@ -1,0 +1,447 @@
+{% comment %}
+  ============================================================
+  Section: Gift Guide Banner
+  ============================================================
+  Two sub-parts:
+    1. Top bar  — brand name | scrolling ticker | animated CTA button
+    2. Main area — background illustration + hero text + bottom ticker
+
+  All text in red rectangles (per Figma) is customizer-editable via schema.
+  No jQuery — vanilla JS only.
+  ============================================================
+{% endcomment %}
+
+<section
+  id="gift-guide-banner-{{ section.id }}"
+  class="ggb"
+  aria-label="Gift Guide Banner"
+>
+
+  {%- comment -%} ── 1. TOP BAR ── {%- endcomment -%}
+  <div class="ggb__topbar">
+
+    {%- comment -%} Brand name — editable {%- endcomment -%}
+    <span class="ggb__brand">{{ section.settings.brand_name }}</span>
+
+    {%- comment -%} Scrolling ticker — duplicated spans for seamless loop {%- endcomment -%}
+    <div class="ggb__ticker-wrap" aria-hidden="true">
+      <div class="ggb__ticker-track">
+        <span class="ggb__ticker-item">{{ section.settings.ticker_text }}</span>
+        <span class="ggb__ticker-item">{{ section.settings.ticker_text }}</span>
+        <span class="ggb__ticker-item">{{ section.settings.ticker_text }}</span>
+      </div>
+    </div>
+
+    {%- comment -%} CTA button with arrow animation — editable {%- endcomment -%}
+    <a
+      href="{{ section.settings.cta_url | default: '#' }}"
+      class="ggb__cta-btn"
+      aria-label="{{ section.settings.cta_text }}"
+    >
+      <span class="ggb__cta-text">{{ section.settings.cta_text }}</span>
+      <span class="ggb__cta-arrow" aria-hidden="true">&#8594;</span>
+    </a>
+
+  </div>
+
+  {%- comment -%} ── 2. MAIN BANNER AREA ── {%- endcomment -%}
+  <div class="ggb__main">
+
+    {%- comment -%} Background illustration image — upload via customizer {%- endcomment -%}
+    <div class="ggb__bg" aria-hidden="true">
+      {%- if section.settings.bg_image != blank -%}
+        {{
+          section.settings.bg_image
+          | image_url: width: 1440
+          | image_tag:
+            loading: 'eager',
+            alt: '',
+            class: 'ggb__bg-img',
+            widths: '768, 1024, 1280, 1440',
+            sizes: '100vw'
+        }}
+      {%- else -%}
+        {%- comment -%} Placeholder if no image uploaded {%- endcomment -%}
+        <div class="ggb__bg-placeholder">{{ 'lifestyle-1' | placeholder_svg_tag }}</div>
+      {%- endif -%}
+    </div>
+
+    {%- comment -%} Hero content — all fields editable {%- endcomment -%}
+    <div class="ggb__hero">
+      <h1 class="ggb__heading">{{ section.settings.heading }}</h1>
+      <p class="ggb__description">{{ section.settings.description }}</p>
+      <a
+        href="{{ section.settings.shop_url | default: '#' }}"
+        class="ggb__shop-btn"
+        aria-label="{{ section.settings.shop_text }}"
+      >
+        <span>{{ section.settings.shop_text }}</span>
+        <span class="ggb__shop-arrow" aria-hidden="true">&#8594;</span>
+      </a>
+    </div>
+
+  </div>
+
+  {%- comment -%} ── 3. BOTTOM TICKER BAR ── {%- endcomment -%}
+  <div class="ggb__bottom-bar" aria-hidden="true">
+    <div class="ggb__bottom-track">
+      <span>{{ section.settings.bottom_ticker }}</span>
+      <span>&#9670;</span>
+      <span>{{ section.settings.bottom_ticker }}</span>
+      <span>&#9670;</span>
+      <span>{{ section.settings.bottom_ticker }}</span>
+      <span>&#9670;</span>
+    </div>
+  </div>
+
+</section>
+
+{%- comment -%} ── STYLES ── {%- endcomment -%}
+<style>
+  /* ============================================================
+     Gift Guide Banner — Scoped styles
+     All class names prefixed with .ggb__ to avoid Dawn conflicts
+     ============================================================ */
+
+  .ggb {
+    font-family: var(--font-body-family, sans-serif);
+    overflow: hidden;
+    background: #fff;
+  }
+
+  /* ── Top Bar ── */
+  .ggb__topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 24px;
+    background: #000;
+  }
+
+  .ggb__brand {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Ticker wrapper — clips overflow and fades edges */
+  .ggb__ticker-wrap {
+    flex: 1;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 12%,
+      black 88%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 12%,
+      black 88%,
+      transparent 100%
+    );
+  }
+
+  /* Scrolling track — animation defined in @keyframes below */
+  .ggb__ticker-track {
+    display: flex;
+    gap: 48px;
+    width: max-content;
+    animation: ggb-scroll 22s linear infinite;
+  }
+
+  .ggb__ticker-item {
+    color: #fff;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  /* CTA Button — yellow, arrow slides right on hover */
+  .ggb__cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    background: #f5c518;
+    color: #000;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border: 2px solid #f5c518;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .ggb__cta-btn:hover {
+    background: #e6b800;
+    border-color: #e6b800;
+  }
+
+  /* Arrow animates on hover */
+  .ggb__cta-arrow {
+    display: inline-block;
+    transition: transform 0.22s ease;
+  }
+
+  .ggb__cta-btn:hover .ggb__cta-arrow {
+    transform: translateX(5px);
+  }
+
+  /* ── Main Banner ── */
+  .ggb__main {
+    position: relative;
+    min-height: 400px;
+    display: flex;
+    align-items: flex-end;
+  }
+
+  /* Background image fills the entire main area */
+  .ggb__bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .ggb__bg-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  .ggb__bg-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #f4f4f4;
+  }
+
+  .ggb__bg-placeholder svg {
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+  }
+
+  /* Hero content — positioned bottom-left over the illustration */
+  .ggb__hero {
+    position: relative;
+    z-index: 1;
+    padding: 40px 40px 48px;
+    max-width: 440px;
+  }
+
+  .ggb__heading {
+    /* Figma uses a display serif — replace font-family with exact Figma font name */
+    font-family: 'Playfair Display', 'Georgia', serif;
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    font-weight: 700;
+    color: #000;
+    margin: 0 0 14px;
+    line-height: 1.15;
+  }
+
+  .ggb__description {
+    font-size: 13px;
+    color: #333;
+    line-height: 1.65;
+    margin: 0 0 22px;
+  }
+
+  /* Shop Now button — black, arrow slides on hover */
+  .ggb__shop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 22px;
+    background: #000;
+    color: #fff;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 2px solid #000;
+    transition: background 0.2s ease, gap 0.22s ease;
+  }
+
+  .ggb__shop-btn:hover {
+    background: #222;
+  }
+
+  .ggb__shop-arrow {
+    display: inline-block;
+    transition: transform 0.22s ease;
+  }
+
+  .ggb__shop-btn:hover .ggb__shop-arrow {
+    transform: translateX(5px);
+  }
+
+  /* ── Bottom Ticker ── */
+  .ggb__bottom-bar {
+    overflow: hidden;
+    border-top: 1px solid #e0e0e0;
+    background: #fff;
+    padding: 7px 0;
+  }
+
+  .ggb__bottom-track {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    width: max-content;
+    animation: ggb-scroll 30s linear infinite;
+  }
+
+  .ggb__bottom-track span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  /* ── Shared scroll animation ── */
+  @keyframes ggb-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-33.333%); }
+  }
+
+  /* ── Responsive — Mobile ── */
+  @media (max-width: 768px) {
+    .ggb__topbar {
+      padding: 8px 16px;
+      gap: 10px;
+    }
+
+    .ggb__brand {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+    }
+
+    .ggb__cta-btn {
+      font-size: 10px;
+      padding: 7px 12px;
+    }
+
+    /* Hide ticker on very small screens to avoid clutter */
+    .ggb__ticker-wrap {
+      display: none;
+    }
+
+    .ggb__main {
+      min-height: 300px;
+      align-items: flex-end;
+    }
+
+    .ggb__hero {
+      padding: 24px 20px 32px;
+      max-width: 100%;
+    }
+
+    .ggb__heading {
+      font-size: 1.75rem;
+    }
+
+    .ggb__description {
+      font-size: 12px;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Gift Guide Banner",
+  "tag": "section",
+  "class": "gift-guide-banner-section",
+  "settings": [
+    {
+      "type": "image_picker",
+      "id": "bg_image",
+      "label": "Background Illustration Image",
+      "info": "Export the line-art illustration from Figma and upload here"
+    },
+    {
+      "type": "header",
+      "content": "Top Bar"
+    },
+    {
+      "type": "text",
+      "id": "brand_name",
+      "label": "Brand Name",
+      "default": "TISSO VISON"
+    },
+    {
+      "type": "text",
+      "id": "ticker_text",
+      "label": "Top Ticker Text",
+      "default": "Find the ideal gift for your loved ones."
+    },
+    {
+      "type": "text",
+      "id": "cta_text",
+      "label": "CTA Button Text",
+      "default": "CHOOSE GIFT"
+    },
+    {
+      "type": "url",
+      "id": "cta_url",
+      "label": "CTA Button URL"
+    },
+    {
+      "type": "header",
+      "content": "Hero Content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "The Gift Guide"
+    },
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Description",
+      "default": "Discover joy: Your Ultimate Holiday Gift Destination. Explore our curated selection and find the perfect gifts to delight your loved ones this holiday season."
+    },
+    {
+      "type": "text",
+      "id": "shop_text",
+      "label": "Shop Now Button Text",
+      "default": "SHOP NOW"
+    },
+    {
+      "type": "url",
+      "id": "shop_url",
+      "label": "Shop Now Button URL"
+    },
+    {
+      "type": "header",
+      "content": "Bottom Bar"
+    },
+    {
+      "type": "text",
+      "id": "bottom_ticker",
+      "label": "Bottom Ticker Text",
+      "default": "SUSTAINABLE, ETHICALLY MADE CLOTHES IN SIZES XXS TO 6X"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Gift Guide Banner"
+    }
+  ]
+}
+{% endschema %}

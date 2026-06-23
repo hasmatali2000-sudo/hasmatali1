@@ -1,0 +1,963 @@
+{% comment %}
+  ============================================================
+  Section: Gift Guide Grid
+  ============================================================
+  - 3×2 product grid (6 products selectable from customizer)
+  - Dot icon on each cell — click to open popup modal
+  - Popup: product image, name, price, description, color buttons, size dropdown
+  - Add to Cart via Shopify AJAX Cart API (vanilla JS)
+
+  Special rule:
+    If selected color = "Black" AND size = "Medium"
+    → also auto-add "Soft Winter Jacket" to the cart
+
+  No jQuery — vanilla JS only.
+  ============================================================
+{% endcomment %}
+
+<section
+  id="gift-guide-grid-{{ section.id }}"
+  class="ggg"
+  aria-label="Product Grid"
+>
+
+  {%- comment -%} Section heading {%- endcomment -%}
+  {%- if section.settings.heading != blank -%}
+    <p class="ggg__heading">{{ section.settings.heading }}</p>
+  {%- endif -%}
+
+  {%- comment -%} ── PRODUCT GRID ── {%- endcomment -%}
+  <div class="ggg__grid" role="list">
+    {%- for block in section.blocks -%}
+      {%- assign product = block.settings.product -%}
+      <div
+        class="ggg__cell{% if product == blank %} ggg__cell--empty{% endif %}"
+        role="listitem"
+        {{ block.shopify_attributes }}
+      >
+        {%- if product != blank -%}
+
+          {%- comment -%} Clickable button — stores product handle for JS to fetch {%- endcomment -%}
+          <button
+            class="ggg__cell-btn"
+            type="button"
+            data-product-handle="{{ product.handle }}"
+            data-section-id="{{ section.id }}"
+            aria-label="View details for {{ product.title | escape }}"
+          >
+            {%- if product.featured_image != blank -%}
+              {{
+                product.featured_image
+                | image_url: width: 600
+                | image_tag:
+                  loading: 'lazy',
+                  alt: product.featured_image.alt | default: product.title | escape,
+                  class: 'ggg__cell-img',
+                  widths: '300, 450, 600',
+                  sizes: '(max-width: 640px) 50vw, 33vw'
+              }}
+            {%- else -%}
+              {{ 'product-1' | placeholder_svg_tag: 'ggg__cell-img ggg__cell-img--placeholder' }}
+            {%- endif -%}
+
+            {%- comment -%} Dot indicator overlay — signals clickable {%- endcomment -%}
+            <span class="ggg__dot" aria-hidden="true"></span>
+          </button>
+
+        {%- else -%}
+
+          {%- comment -%} Empty placeholder block in customizer {%- endcomment -%}
+          <div class="ggg__cell-placeholder">
+            {{ 'product-1' | placeholder_svg_tag: 'ggg__cell-img' }}
+          </div>
+
+        {%- endif -%}
+      </div>
+    {%- endfor -%}
+  </div>
+
+  {%- comment -%} ── POPUP MODAL ── {%- endcomment -%}
+  <div
+    id="ggg-popup-{{ section.id }}"
+    class="ggg__overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ggg-popup-title-{{ section.id }}"
+    aria-hidden="true"
+  >
+    <div class="ggg__popup" role="document">
+
+      {%- comment -%} Close button {%- endcomment -%}
+      <button
+        class="ggg__popup-close"
+        type="button"
+        aria-label="Close popup"
+        id="ggg-close-{{ section.id }}"
+      >&#10005;</button>
+
+      <div class="ggg__popup-inner">
+
+        {%- comment -%} Left — Product image {%- endcomment -%}
+        <div class="ggg__popup-media">
+          <img
+            id="ggg-img-{{ section.id }}"
+            src=""
+            alt=""
+            class="ggg__popup-img"
+            loading="lazy"
+          >
+        </div>
+
+        {%- comment -%} Right — Product info {%- endcomment -%}
+        <div class="ggg__popup-info">
+
+          <h2
+            class="ggg__popup-title"
+            id="ggg-popup-title-{{ section.id }}"
+          ></h2>
+
+          <p class="ggg__popup-price" id="ggg-price-{{ section.id }}"></p>
+
+          <p class="ggg__popup-desc" id="ggg-desc-{{ section.id }}"></p>
+
+          {%- comment -%} Variant pickers — rendered by JS {%- endcomment -%}
+          <div
+            class="ggg__variants"
+            id="ggg-variants-{{ section.id }}"
+          ></div>
+
+          {%- comment -%} Add to Cart {%- endcomment -%}
+          <button
+            class="ggg__atc-btn"
+            type="button"
+            id="ggg-atc-{{ section.id }}"
+            disabled
+          >
+            ADD TO CART &#8594;
+          </button>
+
+          {%- comment -%} Status message (live region for screen readers) {%- endcomment -%}
+          <p
+            class="ggg__msg"
+            id="ggg-msg-{{ section.id }}"
+            aria-live="polite"
+            role="status"
+          ></p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+{%- comment -%} ── STYLES ── {%- endcomment -%}
+<style>
+  /* ============================================================
+     Gift Guide Grid — Scoped styles
+     Prefix: .ggg__  (gift guide grid)
+     ============================================================ */
+
+  .ggg {
+    font-family: var(--font-body-family, sans-serif);
+    padding: 32px 0 0;
+  }
+
+  /* Section heading above grid */
+  .ggg__heading {
+    font-size: 14px;
+    font-weight: 400;
+    color: #111;
+    margin: 0 0 12px;
+    padding: 0 20px;
+  }
+
+  /* ── 3-column grid, 2px gap ── */
+  .ggg__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+  }
+
+  /* Each cell is square via aspect-ratio */
+  .ggg__cell {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #f0f0f0;
+  }
+
+  /* Full-size clickable button */
+  .ggg__cell-btn {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+  }
+
+  /* Product image fills cell */
+  .ggg__cell-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+  }
+
+  .ggg__cell-btn:hover .ggg__cell-img,
+  .ggg__cell-btn:focus-visible .ggg__cell-img {
+    transform: scale(1.05);
+  }
+
+  /* Dot indicator — white circle bottom-right of image */
+  .ggg__dot {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 22px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 2px solid #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .ggg__dot::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: #000;
+    border-radius: 50%;
+  }
+
+  .ggg__cell-btn:hover .ggg__dot {
+    transform: scale(1.15);
+    background: #fff;
+  }
+
+  /* Empty placeholder cell */
+  .ggg__cell--empty .ggg__cell-img {
+    opacity: 0.3;
+  }
+
+  /* ── Popup Overlay ── */
+  .ggg__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 16px;
+  }
+
+  /* Active state */
+  .ggg__overlay.is-open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Popup card */
+  .ggg__popup {
+    background: #fff;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    padding: 28px 24px 24px;
+    transform: translateY(12px);
+    transition: transform 0.25s ease;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
+  }
+
+  .ggg__overlay.is-open .ggg__popup {
+    transform: translateY(0);
+  }
+
+  /* Close button */
+  .ggg__popup-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #333;
+    line-height: 1;
+    padding: 4px 6px;
+    transition: color 0.15s;
+  }
+
+  .ggg__popup-close:hover {
+    color: #000;
+  }
+
+  /* Two-column inner layout: image | info */
+  .ggg__popup-inner {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  /* Left image */
+  .ggg__popup-media {
+    flex-shrink: 0;
+    width: 130px;
+  }
+
+  .ggg__popup-img {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    display: block;
+    background: #f0f0f0;
+  }
+
+  /* Right info panel */
+  .ggg__popup-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ggg__popup-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #000;
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+
+  .ggg__popup-price {
+    font-size: 14px;
+    font-weight: 700;
+    color: #000;
+    margin: 0 0 8px;
+  }
+
+  .ggg__popup-desc {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.55;
+    margin: 0 0 14px;
+    max-height: 56px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ── Variant Pickers ── */
+  .ggg__variants {
+    margin-bottom: 14px;
+  }
+
+  .ggg__variant-group {
+    margin-bottom: 10px;
+  }
+
+  /* Option label e.g. "Color:" */
+  .ggg__variant-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #000;
+    margin-bottom: 6px;
+  }
+
+  /* Color option buttons */
+  .ggg__color-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ggg__color-btn {
+    padding: 5px 14px;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    color: #333;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    font-family: inherit;
+  }
+
+  .ggg__color-btn:hover {
+    border-color: #000;
+  }
+
+  .ggg__color-btn.is-selected {
+    border-color: #000;
+    background: #000;
+    color: #fff;
+  }
+
+  /* Size dropdown */
+  .ggg__size-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    font-size: 12px;
+    font-family: inherit;
+    color: #333;
+    cursor: pointer;
+    appearance: auto;
+    transition: border-color 0.15s ease;
+  }
+
+  .ggg__size-select:focus {
+    outline: 2px solid #000;
+    outline-offset: 1px;
+    border-color: #000;
+  }
+
+  /* ── Add to Cart Button ── */
+  .ggg__atc-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: #000;
+    color: #fff;
+    border: 2px solid #000;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s ease;
+    margin-bottom: 8px;
+  }
+
+  .ggg__atc-btn:hover:not(:disabled) {
+    background: #222;
+  }
+
+  .ggg__atc-btn:disabled {
+    background: #999;
+    border-color: #999;
+    cursor: not-allowed;
+  }
+
+  /* Status / feedback message */
+  .ggg__msg {
+    font-size: 12px;
+    color: #333;
+    text-align: center;
+    min-height: 18px;
+    margin: 0;
+  }
+
+  .ggg__msg.is-error {
+    color: #c00;
+  }
+
+  /* ── Loading spinner inside popup ── */
+  .ggg__loading {
+    text-align: center;
+    padding: 24px;
+    font-size: 13px;
+    color: #777;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 640px) {
+    /* 2-column grid on mobile */
+    .ggg__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Stack popup vertically */
+    .ggg__popup-inner {
+      flex-direction: column;
+    }
+
+    .ggg__popup-media {
+      width: 100%;
+    }
+
+    .ggg__popup-img {
+      aspect-ratio: 4 / 3;
+    }
+  }
+</style>
+
+{%- comment -%} ── JAVASCRIPT ── {%- endcomment -%}
+<script>
+  /**
+   * ============================================================
+   * Gift Guide Grid — Popup & Cart Script
+   * ============================================================
+   * Vanilla JS only. No jQuery.
+   *
+   * Responsibilities:
+   *   1. Open popup on grid cell click
+   *   2. Fetch product data from Shopify AJAX API
+   *   3. Render color buttons + size dropdown dynamically
+   *   4. Add to Cart via /cart/add.js
+   *   5. Special rule: Black + Medium → also add Soft Winter Jacket
+   * ============================================================
+   */
+  (function () {
+    'use strict';
+
+    /* ── Configuration ── */
+    var SECTION_ID         = '{{ section.id }}';
+    var JACKET_HANDLE      = 'soft-winter-jacket'; // Soft Winter Jacket product handle
+    var MONEY_FORMAT       = {{ shop.money_format | json }};
+
+    /* ── DOM References ── */
+    var sectionEl  = document.getElementById('gift-guide-grid-' + SECTION_ID);
+    var overlay    = document.getElementById('ggg-popup-' + SECTION_ID);
+    var closeBtn   = document.getElementById('ggg-close-' + SECTION_ID);
+    var imgEl      = document.getElementById('ggg-img-' + SECTION_ID);
+    var titleEl    = document.getElementById('ggg-popup-title-' + SECTION_ID);
+    var priceEl    = document.getElementById('ggg-price-' + SECTION_ID);
+    var descEl     = document.getElementById('ggg-desc-' + SECTION_ID);
+    var variantsEl = document.getElementById('ggg-variants-' + SECTION_ID);
+    var atcBtn     = document.getElementById('ggg-atc-' + SECTION_ID);
+    var msgEl      = document.getElementById('ggg-msg-' + SECTION_ID);
+
+    /* Bail early if section elements not present */
+    if (!sectionEl || !overlay) return;
+
+    /* ── State ── */
+    var currentProduct  = null; // Full product JSON from /products/{handle}.js
+    var selectedColor   = null; // Currently selected color option value
+    var selectedSize    = null; // Currently selected size option value
+
+    /* ── Utility: Format money ──────────────────────────────── */
+    /**
+     * Formats a price in cents using the shop's money format.
+     * @param {number} cents
+     * @returns {string}
+     */
+    function formatMoney(cents) {
+      var amount = (cents / 100).toFixed(2);
+      return MONEY_FORMAT
+        .replace('{{amount}}', amount)
+        .replace('{{amount_no_decimals}}', Math.floor(cents / 100))
+        .replace('{{amount_with_comma_separator}}', amount.replace('.', ','));
+    }
+
+    /* ── Utility: Strip HTML from description ──────────────── */
+    /**
+     * Returns plain text from an HTML string.
+     * @param {string} html
+     * @returns {string}
+     */
+    function stripHtml(html) {
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return (tmp.textContent || tmp.innerText || '').trim();
+    }
+
+    /* ── Utility: Find matching variant ────────────────────── */
+    /**
+     * Finds the first variant that matches selectedColor and selectedSize.
+     * Checks option1, option2, option3 fields on each variant.
+     * @returns {object|null}
+     */
+    function getMatchingVariant() {
+      if (!currentProduct) return null;
+
+      return currentProduct.variants.find(function (variant) {
+        var options = [variant.option1, variant.option2, variant.option3];
+
+        /* If color selected, at least one option must match */
+        var colorMatch = !selectedColor || options.indexOf(selectedColor) !== -1;
+        /* If size selected, at least one option must match */
+        var sizeMatch  = !selectedSize  || options.indexOf(selectedSize)  !== -1;
+
+        return colorMatch && sizeMatch;
+      }) || null;
+    }
+
+    /* ── Utility: Check jacket rule ────────────────────────── */
+    /**
+     * Returns true when the special auto-jacket rule applies:
+     * selected color = "Black" AND selected size = "Medium"
+     * @returns {boolean}
+     */
+    function shouldAddJacket() {
+      return selectedColor === 'Black' && selectedSize === 'Medium';
+    }
+
+    /* ── API: Fetch product JSON ────────────────────────────── */
+    /**
+     * Fetches product data from Shopify's storefront AJAX API.
+     * @param {string} handle - Shopify product handle
+     * @returns {Promise<object>}
+     */
+    function fetchProduct(handle) {
+      return fetch('/products/' + handle + '.js')
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('Product "' + handle + '" not found (HTTP ' + response.status + ')');
+          }
+          return response.json();
+        });
+    }
+
+    /* ── API: Add items to cart ─────────────────────────────── */
+    /**
+     * Adds one or more items to cart via /cart/add.js
+     * @param {Array<{id: number, quantity: number}>} items
+     * @returns {Promise<object>}
+     */
+    function addItemsToCart(items) {
+      return fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: items })
+      }).then(function (response) {
+        if (!response.ok) {
+          return response.json().then(function (data) {
+            throw new Error(data.description || 'Could not add to cart.');
+          });
+        }
+        return response.json();
+      });
+    }
+
+    /* ── UI: Refresh cart count bubble ─────────────────────── */
+    /**
+     * Updates Dawn's cart count bubble after items are added.
+     */
+    function refreshCartCount() {
+      fetch('/cart.js')
+        .then(function (r) { return r.json(); })
+        .then(function (cart) {
+          /* Dawn theme cart count selectors */
+          var countEls = document.querySelectorAll(
+            '[data-cart-count], .cart-count-bubble span, #cart-icon-bubble span'
+          );
+          countEls.forEach(function (el) {
+            el.textContent = cart.item_count;
+          });
+        })
+        .catch(function () { /* non-critical */ });
+    }
+
+    /* ── UI: Update ATC button state ───────────────────────── */
+    /**
+     * Enables or disables the Add to Cart button based on variant match.
+     * Also updates the displayed price with the variant's price.
+     */
+    function updateVariantState() {
+      var variant = getMatchingVariant();
+
+      if (variant) {
+        atcBtn.disabled = false;
+        if (priceEl) priceEl.textContent = formatMoney(variant.price);
+      } else {
+        atcBtn.disabled = !selectedColor && !selectedSize ? false : true;
+      }
+    }
+
+    /* ── UI: Render variant pickers ────────────────────────── */
+    /**
+     * Dynamically builds color buttons and size dropdown from product options.
+     * Color-type options → pill buttons
+     * Size-type options  → <select> dropdown
+     * @param {object} product - Full product JSON
+     */
+    function renderVariants(product) {
+      if (!variantsEl) return;
+      variantsEl.innerHTML = '';
+
+      product.options.forEach(function (optionName, index) {
+        /* Collect unique values for this option across all variants */
+        var values = [];
+        product.variants.forEach(function (v) {
+          var val = v['option' + (index + 1)];
+          if (val && values.indexOf(val) === -1) values.push(val);
+        });
+
+        if (!values.length) return;
+
+        var group = document.createElement('div');
+        group.className = 'ggg__variant-group';
+
+        var label = document.createElement('span');
+        label.className = 'ggg__variant-label';
+        label.textContent = optionName + ':';
+        group.appendChild(label);
+
+        var isSize = /size/i.test(optionName);
+
+        if (isSize) {
+          /* ── Size dropdown ── */
+          var select = document.createElement('select');
+          select.className = 'ggg__size-select';
+          select.setAttribute('aria-label', 'Choose ' + optionName);
+
+          var placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = 'Choose your size';
+          placeholder.disabled = true;
+          placeholder.selected = true;
+          select.appendChild(placeholder);
+
+          values.forEach(function (val) {
+            var opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            select.appendChild(opt);
+          });
+
+          select.addEventListener('change', function () {
+            selectedSize = this.value || null;
+            updateVariantState();
+          });
+
+          group.appendChild(select);
+
+        } else {
+          /* ── Color / other option buttons ── */
+          var colorWrap = document.createElement('div');
+          colorWrap.className = 'ggg__color-options';
+
+          values.forEach(function (val) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ggg__color-btn';
+            btn.textContent = val;
+            btn.dataset.value = val;
+            btn.setAttribute('aria-label', optionName + ': ' + val);
+
+            btn.addEventListener('click', function () {
+              /* Deselect all siblings */
+              colorWrap.querySelectorAll('.ggg__color-btn').forEach(function (b) {
+                b.classList.remove('is-selected');
+                b.setAttribute('aria-pressed', 'false');
+              });
+              this.classList.add('is-selected');
+              this.setAttribute('aria-pressed', 'true');
+              selectedColor = val;
+              updateVariantState();
+            });
+
+            colorWrap.appendChild(btn);
+          });
+
+          group.appendChild(colorWrap);
+        }
+
+        variantsEl.appendChild(group);
+      });
+    }
+
+    /* ── UI: Open popup ─────────────────────────────────────── */
+    /**
+     * Resets popup state and opens it, then fetches & renders product data.
+     * @param {string} handle - Shopify product handle
+     */
+    function openPopup(handle) {
+      /* Reset state */
+      currentProduct = null;
+      selectedColor  = null;
+      selectedSize   = null;
+
+      /* Reset UI */
+      if (imgEl)      { imgEl.src = ''; imgEl.alt = ''; }
+      if (titleEl)    titleEl.textContent = '';
+      if (priceEl)    priceEl.textContent = '';
+      if (descEl)     descEl.textContent = '';
+      if (variantsEl) variantsEl.innerHTML = '<div class="ggg__loading">Loading&hellip;</div>';
+      if (msgEl)      { msgEl.textContent = ''; msgEl.className = 'ggg__msg'; }
+      if (atcBtn)     atcBtn.disabled = true;
+
+      /* Show overlay */
+      overlay.classList.add('is-open');
+      overlay.removeAttribute('aria-hidden');
+      overlay.setAttribute('aria-hidden', 'false');
+      if (closeBtn) closeBtn.focus();
+
+      /* Lock body scroll */
+      document.body.style.overflow = 'hidden';
+
+      /* Fetch product data */
+      fetchProduct(handle)
+        .then(function (product) {
+          currentProduct = product;
+
+          /* Populate image */
+          if (imgEl && product.featured_image) {
+            imgEl.src = product.featured_image;
+            imgEl.alt = product.title;
+          }
+
+          /* Populate text fields */
+          if (titleEl) titleEl.textContent = product.title;
+          if (priceEl) priceEl.textContent = formatMoney(product.price);
+          if (descEl)  descEl.textContent  = stripHtml(product.description);
+
+          /* Render variant pickers */
+          renderVariants(product);
+        })
+        .catch(function (err) {
+          console.error('[Gift Guide Grid]', err);
+          if (variantsEl) variantsEl.innerHTML = '';
+          if (msgEl) {
+            msgEl.textContent = 'Failed to load product. Please try again.';
+            msgEl.className = 'ggg__msg is-error';
+          }
+        });
+    }
+
+    /* ── UI: Close popup ────────────────────────────────────── */
+    function closePopup() {
+      overlay.classList.remove('is-open');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    /* ── Handler: Add to Cart click ─────────────────────────── */
+    function handleAddToCart() {
+      var variant = getMatchingVariant();
+      if (!variant) return;
+
+      /* Disable button and show loading state */
+      atcBtn.disabled = true;
+      atcBtn.textContent = 'ADDING\u2026';
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ggg__msg'; }
+
+      var items = [{ id: variant.id, quantity: 1 }];
+
+      /* ── Add main product ── */
+      addItemsToCart(items)
+        .then(function () {
+
+          /**
+           * Special rule:
+           * If color === "Black" AND size === "Medium",
+           * also automatically add the "Soft Winter Jacket" to cart.
+           */
+          if (shouldAddJacket()) {
+            return fetchProduct(JACKET_HANDLE)
+              .then(function (jacket) {
+                var jacketVariant = jacket.variants[0];
+                if (!jacketVariant) throw new Error('Soft Winter Jacket variant not found.');
+                return addItemsToCart([{ id: jacketVariant.id, quantity: 1 }]);
+              })
+              .then(function () {
+                if (msgEl) {
+                  msgEl.textContent = 'Added! Soft Winter Jacket included \uD83C\uDF81';
+                }
+              });
+          } else {
+            if (msgEl) msgEl.textContent = 'Added to cart!';
+          }
+
+        })
+        .then(function () {
+          /* Refresh cart count in Dawn header */
+          refreshCartCount();
+        })
+        .catch(function (err) {
+          console.error('[Gift Guide Grid] Cart error:', err);
+          if (msgEl) {
+            msgEl.textContent = err.message || 'Something went wrong.';
+            msgEl.className = 'ggg__msg is-error';
+          }
+        })
+        .finally(function () {
+          /* Restore button */
+          atcBtn.disabled = false;
+          atcBtn.textContent = 'ADD TO CART \u2192';
+        });
+    }
+
+    /* ── Event Listeners ────────────────────────────────────── */
+
+    /* Delegate click on grid to handle cell buttons */
+    var gridEl = sectionEl.querySelector('.ggg__grid');
+    if (gridEl) {
+      gridEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('.ggg__cell-btn');
+        if (!btn) return;
+        var handle = btn.dataset.productHandle;
+        if (handle) openPopup(handle);
+      });
+    }
+
+    /* Close button */
+    if (closeBtn) closeBtn.addEventListener('click', closePopup);
+
+    /* Click outside popup card to close */
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closePopup();
+    });
+
+    /* Escape key */
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
+        closePopup();
+      }
+    });
+
+    /* Add to Cart */
+    if (atcBtn) atcBtn.addEventListener('click', handleAddToCart);
+
+  }()); /* End IIFE */
+</script>
+
+{% schema %}
+{
+  "name": "Gift Guide Grid",
+  "tag": "section",
+  "class": "gift-guide-grid-section",
+  "max_blocks": 6,
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Section Heading",
+      "default": "Tisso vison in the wild"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "Product",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "Product"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Gift Guide Grid",
+      "blocks": [
+        { "type": "product" },
+        { "type": "product" },
+        { "type": "product" },
+        { "type": "product" },
+        { "type": "product" },
+        { "type": "product" }
+      ]
+    }
+  ]
+}
+{% endschema %}
