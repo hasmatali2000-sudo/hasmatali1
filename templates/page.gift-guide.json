@@ -1,3 +1,12 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
 {
   "sections": {
     "gift_guide_banner": {
@@ -16,43 +25,55 @@
     },
     "gift_guide_grid": {
       "type": "gift-guide-grid",
-      "settings": {
-        "heading": "Tisso vison in the wild"
-      },
       "blocks": {
-        "product_block_1": {
+        "p1": {
           "type": "product",
-          "settings": {}
+          "settings": {
+            "product": "black-leather-bag"
+          }
         },
-        "product_block_2": {
+        "p2": {
           "type": "product",
-          "settings": {}
+          "settings": {
+            "product": "blue-silk-tuxedo"
+          }
         },
-        "product_block_3": {
+        "p3": {
           "type": "product",
-          "settings": {}
+          "settings": {
+            "product": "chequered-red-shirt"
+          }
         },
-        "product_block_4": {
+        "p4": {
           "type": "product",
-          "settings": {}
+          "settings": {
+            "product": "classic-leather-jacket"
+          }
         },
-        "product_block_5": {
+        "p5": {
           "type": "product",
-          "settings": {}
+          "settings": {
+            "product": "classic-varsity-top"
+          }
         },
-        "product_block_6": {
+        "p6": {
           "type": "product",
-          "settings": {}
+          "settings": {
+            "product": "dark-denim-top"
+          }
         }
       },
       "block_order": [
-        "product_block_1",
-        "product_block_2",
-        "product_block_3",
-        "product_block_4",
-        "product_block_5",
-        "product_block_6"
-      ]
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6"
+      ],
+      "settings": {
+        "heading": "Tisso vison in the wild"
+      }
     }
   },
   "order": [

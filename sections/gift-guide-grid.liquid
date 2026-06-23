@@ -46,16 +46,7 @@
             aria-label="View details for {{ product.title | escape }}"
           >
             {%- if product.featured_image != blank -%}
-              {{
-                product.featured_image
-                | image_url: width: 600
-                | image_tag:
-                  loading: 'lazy',
-                  alt: product.featured_image.alt | default: product.title | escape,
-                  class: 'ggg__cell-img',
-                  widths: '300, 450, 600',
-                  sizes: '(max-width: 640px) 50vw, 33vw'
-              }}
+              {{ product.featured_image | image_url: width: 600 | image_tag: loading: 'lazy', alt: product.title, class: 'ggg__cell-img' }}
             {%- else -%}
               {{ 'product-1' | placeholder_svg_tag: 'ggg__cell-img ggg__cell-img--placeholder' }}
             {%- endif -%}
@@ -501,28 +492,14 @@
 {%- comment -%} ── JAVASCRIPT ── {%- endcomment -%}
 <script>
   /**
-   * ============================================================
-   * Gift Guide Grid — Popup & Cart Script
-   * ============================================================
-   * Vanilla JS only. No jQuery.
-   *
-   * Responsibilities:
-   *   1. Open popup on grid cell click
-   *   2. Fetch product data from Shopify AJAX API
-   *   3. Render color buttons + size dropdown dynamically
-   *   4. Add to Cart via /cart/add.js
-   *   5. Special rule: Black + Medium → also add Soft Winter Jacket
-   * ============================================================
+   * Gift Guide Grid — Popup & Cart Script (vanilla JS, no jQuery)
    */
   (function () {
     'use strict';
 
-    /* ── Configuration ── */
-    var SECTION_ID         = '{{ section.id }}';
-    var JACKET_HANDLE      = 'soft-winter-jacket'; // Soft Winter Jacket product handle
-    var MONEY_FORMAT       = {{ shop.money_format | json }};
+    var SECTION_ID    = '{{ section.id }}';
+    var JACKET_HANDLE = 'dark-winter-jacket';
 
-    /* ── DOM References ── */
     var sectionEl  = document.getElementById('gift-guide-grid-' + SECTION_ID);
     var overlay    = document.getElementById('ggg-popup-' + SECTION_ID);
     var closeBtn   = document.getElementById('ggg-close-' + SECTION_ID);
@@ -534,162 +511,104 @@
     var atcBtn     = document.getElementById('ggg-atc-' + SECTION_ID);
     var msgEl      = document.getElementById('ggg-msg-' + SECTION_ID);
 
-    /* Bail early if section elements not present */
     if (!sectionEl || !overlay) return;
 
-    /* ── State ── */
-    var currentProduct  = null; // Full product JSON from /products/{handle}.js
-    var selectedColor   = null; // Currently selected color option value
-    var selectedSize    = null; // Currently selected size option value
+    var currentProduct = null;
+    var selectedColor  = null;
+    var selectedSize   = null;
 
-    /* ── Utility: Format money ──────────────────────────────── */
-    /**
-     * Formats a price in cents using the shop's money format.
-     * @param {number} cents
-     * @returns {string}
-     */
+    // Format price (Shopify .js prices are in cents)
     function formatMoney(cents) {
-      var amount = (cents / 100).toFixed(2);
-      return MONEY_FORMAT
-        .replace('{{amount}}', amount)
-        .replace('{{amount_no_decimals}}', Math.floor(cents / 100))
-        .replace('{{amount_with_comma_separator}}', amount.replace('.', ','));
+      var amount = (cents / 100).toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      return '\u20B9' + amount;
     }
 
-    /* ── Utility: Strip HTML from description ──────────────── */
-    /**
-     * Returns plain text from an HTML string.
-     * @param {string} html
-     * @returns {string}
-     */
+    // Strip HTML tags from description
     function stripHtml(html) {
       var tmp = document.createElement('div');
       tmp.innerHTML = html;
       return (tmp.textContent || tmp.innerText || '').trim();
     }
 
-    /* ── Utility: Find matching variant ────────────────────── */
-    /**
-     * Finds the first variant that matches selectedColor and selectedSize.
-     * Checks option1, option2, option3 fields on each variant.
-     * @returns {object|null}
-     */
+    // Normalize an option name (Shopify may return an object or a string)
+    function getOptionName(option) {
+      if (option && typeof option === 'object' && option.name) return option.name;
+      return option;
+    }
+
+    // Find the variant matching the current color + size selection
     function getMatchingVariant() {
       if (!currentProduct) return null;
-
       return currentProduct.variants.find(function (variant) {
         var options = [variant.option1, variant.option2, variant.option3];
-
-        /* If color selected, at least one option must match */
         var colorMatch = !selectedColor || options.indexOf(selectedColor) !== -1;
-        /* If size selected, at least one option must match */
         var sizeMatch  = !selectedSize  || options.indexOf(selectedSize)  !== -1;
-
         return colorMatch && sizeMatch;
       }) || null;
     }
 
-    /* ── Utility: Check jacket rule ────────────────────────── */
-    /**
-     * Returns true when the special auto-jacket rule applies:
-     * selected color = "Black" AND selected size = "Medium"
-     * @returns {boolean}
-     */
+    // Special rule: Black + Medium also adds the Soft Winter Jacket
     function shouldAddJacket() {
-      return selectedColor === 'Black' && selectedSize === 'Medium';
+      var size = (selectedSize || '').toLowerCase();
+      var isMedium = (size === 'm' || size === 'medium');
+      return selectedColor === 'Black' && isMedium;
     }
 
-    /* ── API: Fetch product JSON ────────────────────────────── */
-    /**
-     * Fetches product data from Shopify's storefront AJAX API.
-     * @param {string} handle - Shopify product handle
-     * @returns {Promise<object>}
-     */
     function fetchProduct(handle) {
-      return fetch('/products/' + handle + '.js')
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error('Product "' + handle + '" not found (HTTP ' + response.status + ')');
-          }
-          return response.json();
-        });
+      return fetch('/products/' + handle + '.js').then(function (res) {
+        if (!res.ok) throw new Error('Product not found: ' + handle);
+        return res.json();
+      });
     }
 
-    /* ── API: Add items to cart ─────────────────────────────── */
-    /**
-     * Adds one or more items to cart via /cart/add.js
-     * @param {Array<{id: number, quantity: number}>} items
-     * @returns {Promise<object>}
-     */
     function addItemsToCart(items) {
       return fetch('/cart/add.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: items })
-      }).then(function (response) {
-        if (!response.ok) {
-          return response.json().then(function (data) {
-            throw new Error(data.description || 'Could not add to cart.');
+      }).then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (d) {
+            throw new Error(d.description || 'Could not add to cart.');
           });
         }
-        return response.json();
+        return res.json();
       });
     }
 
-    /* ── UI: Refresh cart count bubble ─────────────────────── */
-    /**
-     * Updates Dawn's cart count bubble after items are added.
-     */
     function refreshCartCount() {
-      fetch('/cart.js')
-        .then(function (r) { return r.json(); })
-        .then(function (cart) {
-          /* Dawn theme cart count selectors */
-          var countEls = document.querySelectorAll(
-            '[data-cart-count], .cart-count-bubble span, #cart-icon-bubble span'
-          );
-          countEls.forEach(function (el) {
-            el.textContent = cart.item_count;
-          });
-        })
-        .catch(function () { /* non-critical */ });
+      fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+        var els = document.querySelectorAll('.cart-count-bubble span, #cart-icon-bubble span');
+        els.forEach(function (el) { el.textContent = cart.item_count; });
+      }).catch(function () {});
     }
 
-    /* ── UI: Update ATC button state ───────────────────────── */
-    /**
-     * Enables or disables the Add to Cart button based on variant match.
-     * Also updates the displayed price with the variant's price.
-     */
     function updateVariantState() {
       var variant = getMatchingVariant();
-
       if (variant) {
         atcBtn.disabled = false;
         if (priceEl) priceEl.textContent = formatMoney(variant.price);
       } else {
-        atcBtn.disabled = !selectedColor && !selectedSize ? false : true;
+        atcBtn.disabled = (selectedColor || selectedSize) ? true : false;
       }
     }
 
-    /* ── UI: Render variant pickers ────────────────────────── */
-    /**
-     * Dynamically builds color buttons and size dropdown from product options.
-     * Color-type options → pill buttons
-     * Size-type options  → <select> dropdown
-     * @param {object} product - Full product JSON
-     */
+    // Build color buttons + size dropdown dynamically from product options
     function renderVariants(product) {
       if (!variantsEl) return;
       variantsEl.innerHTML = '';
 
-      product.options.forEach(function (optionName, index) {
-        /* Collect unique values for this option across all variants */
+      product.options.forEach(function (rawOption, index) {
+        var optName = getOptionName(rawOption);
+
         var values = [];
         product.variants.forEach(function (v) {
           var val = v['option' + (index + 1)];
           if (val && values.indexOf(val) === -1) values.push(val);
         });
-
         if (!values.length) return;
 
         var group = document.createElement('div');
@@ -697,23 +616,22 @@
 
         var label = document.createElement('span');
         label.className = 'ggg__variant-label';
-        label.textContent = optionName + ':';
+        label.textContent = optName + ':';
         group.appendChild(label);
 
-        var isSize = /size/i.test(optionName);
+        var isSize = /size/i.test(optName);
 
         if (isSize) {
-          /* ── Size dropdown ── */
           var select = document.createElement('select');
           select.className = 'ggg__size-select';
-          select.setAttribute('aria-label', 'Choose ' + optionName);
+          select.setAttribute('aria-label', 'Choose ' + optName);
 
-          var placeholder = document.createElement('option');
-          placeholder.value = '';
-          placeholder.textContent = 'Choose your size';
-          placeholder.disabled = true;
-          placeholder.selected = true;
-          select.appendChild(placeholder);
+          var ph = document.createElement('option');
+          ph.value = '';
+          ph.textContent = 'Choose your size';
+          ph.disabled = true;
+          ph.selected = true;
+          select.appendChild(ph);
 
           values.forEach(function (val) {
             var opt = document.createElement('option');
@@ -726,168 +644,113 @@
             selectedSize = this.value || null;
             updateVariantState();
           });
-
           group.appendChild(select);
 
         } else {
-          /* ── Color / other option buttons ── */
-          var colorWrap = document.createElement('div');
-          colorWrap.className = 'ggg__color-options';
+          var wrap = document.createElement('div');
+          wrap.className = 'ggg__color-options';
 
           values.forEach(function (val) {
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'ggg__color-btn';
             btn.textContent = val;
-            btn.dataset.value = val;
-            btn.setAttribute('aria-label', optionName + ': ' + val);
+            btn.setAttribute('aria-label', optName + ': ' + val);
 
             btn.addEventListener('click', function () {
-              /* Deselect all siblings */
-              colorWrap.querySelectorAll('.ggg__color-btn').forEach(function (b) {
+              wrap.querySelectorAll('.ggg__color-btn').forEach(function (b) {
                 b.classList.remove('is-selected');
-                b.setAttribute('aria-pressed', 'false');
               });
               this.classList.add('is-selected');
-              this.setAttribute('aria-pressed', 'true');
               selectedColor = val;
               updateVariantState();
             });
-
-            colorWrap.appendChild(btn);
+            wrap.appendChild(btn);
           });
-
-          group.appendChild(colorWrap);
+          group.appendChild(wrap);
         }
-
         variantsEl.appendChild(group);
       });
     }
 
-    /* ── UI: Open popup ─────────────────────────────────────── */
-    /**
-     * Resets popup state and opens it, then fetches & renders product data.
-     * @param {string} handle - Shopify product handle
-     */
     function openPopup(handle) {
-      /* Reset state */
       currentProduct = null;
-      selectedColor  = null;
-      selectedSize   = null;
+      selectedColor = null;
+      selectedSize = null;
 
-      /* Reset UI */
-      if (imgEl)      { imgEl.src = ''; imgEl.alt = ''; }
-      if (titleEl)    titleEl.textContent = '';
-      if (priceEl)    priceEl.textContent = '';
-      if (descEl)     descEl.textContent = '';
-      if (variantsEl) variantsEl.innerHTML = '<div class="ggg__loading">Loading&hellip;</div>';
-      if (msgEl)      { msgEl.textContent = ''; msgEl.className = 'ggg__msg'; }
-      if (atcBtn)     atcBtn.disabled = true;
+      if (imgEl) { imgEl.src = ''; imgEl.alt = ''; }
+      if (titleEl) titleEl.textContent = '';
+      if (priceEl) priceEl.textContent = '';
+      if (descEl) descEl.textContent = '';
+      if (variantsEl) variantsEl.innerHTML = '<div class="ggg__loading">Loading\u2026</div>';
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ggg__msg'; }
+      if (atcBtn) atcBtn.disabled = true;
 
-      /* Show overlay */
       overlay.classList.add('is-open');
-      overlay.removeAttribute('aria-hidden');
       overlay.setAttribute('aria-hidden', 'false');
       if (closeBtn) closeBtn.focus();
-
-      /* Lock body scroll */
       document.body.style.overflow = 'hidden';
 
-      /* Fetch product data */
-      fetchProduct(handle)
-        .then(function (product) {
-          currentProduct = product;
-
-          /* Populate image */
-          if (imgEl && product.featured_image) {
-            imgEl.src = product.featured_image;
-            imgEl.alt = product.title;
-          }
-
-          /* Populate text fields */
-          if (titleEl) titleEl.textContent = product.title;
-          if (priceEl) priceEl.textContent = formatMoney(product.price);
-          if (descEl)  descEl.textContent  = stripHtml(product.description);
-
-          /* Render variant pickers */
-          renderVariants(product);
-        })
-        .catch(function (err) {
-          console.error('[Gift Guide Grid]', err);
-          if (variantsEl) variantsEl.innerHTML = '';
-          if (msgEl) {
-            msgEl.textContent = 'Failed to load product. Please try again.';
-            msgEl.className = 'ggg__msg is-error';
-          }
-        });
+      fetchProduct(handle).then(function (product) {
+        currentProduct = product;
+        if (imgEl && product.featured_image) {
+          imgEl.src = product.featured_image;
+          imgEl.alt = product.title;
+        }
+        if (titleEl) titleEl.textContent = product.title;
+        if (priceEl) priceEl.textContent = formatMoney(product.price);
+        if (descEl) descEl.textContent = stripHtml(product.description);
+        renderVariants(product);
+      }).catch(function (err) {
+        console.error('[Gift Guide Grid]', err);
+        if (variantsEl) variantsEl.innerHTML = '';
+        if (msgEl) {
+          msgEl.textContent = 'Failed to load product. Please try again.';
+          msgEl.className = 'ggg__msg is-error';
+        }
+      });
     }
 
-    /* ── UI: Close popup ────────────────────────────────────── */
     function closePopup() {
       overlay.classList.remove('is-open');
       overlay.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
     }
 
-    /* ── Handler: Add to Cart click ─────────────────────────── */
     function handleAddToCart() {
       var variant = getMatchingVariant();
       if (!variant) return;
 
-      /* Disable button and show loading state */
       atcBtn.disabled = true;
       atcBtn.textContent = 'ADDING\u2026';
       if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ggg__msg'; }
 
-      var items = [{ id: variant.id, quantity: 1 }];
-
-      /* ── Add main product ── */
-      addItemsToCart(items)
-        .then(function () {
-
-          /**
-           * Special rule:
-           * If color === "Black" AND size === "Medium",
-           * also automatically add the "Soft Winter Jacket" to cart.
-           */
-          if (shouldAddJacket()) {
-            return fetchProduct(JACKET_HANDLE)
-              .then(function (jacket) {
-                var jacketVariant = jacket.variants[0];
-                if (!jacketVariant) throw new Error('Soft Winter Jacket variant not found.');
-                return addItemsToCart([{ id: jacketVariant.id, quantity: 1 }]);
-              })
-              .then(function () {
-                if (msgEl) {
-                  msgEl.textContent = 'Added! Soft Winter Jacket included \uD83C\uDF81';
-                }
-              });
-          } else {
-            if (msgEl) msgEl.textContent = 'Added to cart!';
-          }
-
-        })
-        .then(function () {
-          /* Refresh cart count in Dawn header */
-          refreshCartCount();
-        })
-        .catch(function (err) {
-          console.error('[Gift Guide Grid] Cart error:', err);
-          if (msgEl) {
-            msgEl.textContent = err.message || 'Something went wrong.';
-            msgEl.className = 'ggg__msg is-error';
-          }
-        })
-        .finally(function () {
-          /* Restore button */
-          atcBtn.disabled = false;
-          atcBtn.textContent = 'ADD TO CART \u2192';
-        });
+      addItemsToCart([{ id: variant.id, quantity: 1 }]).then(function () {
+        if (shouldAddJacket()) {
+          return fetchProduct(JACKET_HANDLE).then(function (jacket) {
+            var jv = jacket.variants[0];
+            if (!jv) throw new Error('Soft Winter Jacket variant not found.');
+            return addItemsToCart([{ id: jv.id, quantity: 1 }]);
+          }).then(function () {
+            if (msgEl) msgEl.textContent = 'Added! Soft Winter Jacket included \uD83C\uDF81';
+          });
+        } else {
+          if (msgEl) msgEl.textContent = 'Added to cart!';
+        }
+      }).then(function () {
+        refreshCartCount();
+      }).catch(function (err) {
+        console.error('[Gift Guide Grid] Cart error:', err);
+        if (msgEl) {
+          msgEl.textContent = err.message || 'Something went wrong.';
+          msgEl.className = 'ggg__msg is-error';
+        }
+      }).finally(function () {
+        atcBtn.disabled = false;
+        atcBtn.textContent = 'ADD TO CART \u2192';
+      });
     }
 
-    /* ── Event Listeners ────────────────────────────────────── */
-
-    /* Delegate click on grid to handle cell buttons */
     var gridEl = sectionEl.querySelector('.ggg__grid');
     if (gridEl) {
       gridEl.addEventListener('click', function (e) {
@@ -898,27 +761,17 @@
       });
     }
 
-    /* Close button */
     if (closeBtn) closeBtn.addEventListener('click', closePopup);
-
-    /* Click outside popup card to close */
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) closePopup();
     });
-
-    /* Escape key */
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
-        closePopup();
-      }
+      if (e.key === 'Escape' && overlay.classList.contains('is-open')) closePopup();
     });
-
-    /* Add to Cart */
     if (atcBtn) atcBtn.addEventListener('click', handleAddToCart);
 
-  }()); /* End IIFE */
+  }());
 </script>
-
 {% schema %}
 {
   "name": "Gift Guide Grid",
