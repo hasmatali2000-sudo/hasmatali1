@@ -1,62 +1,60 @@
-{
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */{
   "sections": {
-    "gift_guide_banner": {
-      "type": "gift-guide-banner",
-      "settings": {
-        "brand_name": "TISSO VISON",
-        "ticker_text": "Find the ideal gift for your loved ones.",
-        "cta_text": "CHOOSE GIFT",
-        "cta_url": "",
-        "heading": "The Gift Guide",
-        "description": "Discover joy: Your Ultimate Holiday Gift Destination. Explore our curated selection and find the perfect gifts to delight your loved ones this holiday season.",
-        "shop_text": "SHOP NOW",
-        "shop_url": "",
-        "bottom_ticker": "SUSTAINABLE, ETHICALLY MADE CLOTHES IN SIZES XXS TO 6X"
-      }
-    },
-    "gift_guide_grid": {
-      "type": "gift-guide-grid",
-      "settings": {
-        "heading": "Tisso vison in the wild"
-      },
+    "main": {
+      "type": "main-page",
       "blocks": {
-        "product_block_1": {
-          "type": "product",
-          "settings": {}
+        "heading": {
+          "type": "text",
+          "name": "Title",
+          "settings": {
+            "text": "<h1>{{ closest.page.title }}</h1>",
+            "width": "100%",
+            "max_width": "normal",
+            "alignment": "left",
+            "type_preset": "h2",
+            "font": "var(--font-primary--family)",
+            "line_height": "normal",
+            "letter_spacing": "normal",
+            "case": "none",
+            "wrap": "pretty",
+            "background": false,
+            "background_color": "#00000026",
+            "corner_radius": 0,
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {}
         },
-        "product_block_2": {
-          "type": "product",
-          "settings": {}
-        },
-        "product_block_3": {
-          "type": "product",
-          "settings": {}
-        },
-        "product_block_4": {
-          "type": "product",
-          "settings": {}
-        },
-        "product_block_5": {
-          "type": "product",
-          "settings": {}
-        },
-        "product_block_6": {
-          "type": "product",
-          "settings": {}
+        "page-content": {
+          "type": "page-content",
+          "settings": {},
+          "blocks": {}
         }
       },
       "block_order": [
-        "product_block_1",
-        "product_block_2",
-        "product_block_3",
-        "product_block_4",
-        "product_block_5",
-        "product_block_6"
-      ]
+        "heading",
+        "page-content"
+      ],
+      "settings": {
+        "content_direction": "column",
+        "gap": 32,
+        "background_color": "{{ settings.color_palette.background }}",
+        "padding-block-start": 40,
+        "padding-block-end": 80
+      }
     }
   },
   "order": [
-    "gift_guide_banner",
-    "gift_guide_grid"
+    "main"
   ]
 }
