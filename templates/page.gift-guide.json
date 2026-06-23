@@ -15,27 +15,69 @@
         "brand_name": "TISSO VISON",
         "ticker_text": "Find the ideal gift for your loved ones.",
         "cta_text": "CHOOSE GIFT",
+        "cta_url": "",
         "heading": "The Gift Guide",
         "description": "Discover joy: Your Ultimate Holiday Gift Destination. Explore our curated selection and find the perfect gifts to delight your loved ones this holiday season.",
         "shop_text": "SHOP NOW",
+        "shop_url": "",
         "bottom_ticker": "SUSTAINABLE, ETHICALLY MADE CLOTHES IN SIZES XXS TO 6X"
       }
     },
     "gift_guide_grid": {
       "type": "gift-guide-grid",
+      "blocks": {
+        "p1": {
+          "type": "product",
+          "settings": {
+            "product": "black-leather-bag"
+          }
+        },
+        "p2": {
+          "type": "product",
+          "settings": {
+            "product": "blue-silk-tuxedo"
+          }
+        },
+        "p3": {
+          "type": "product",
+          "settings": {
+            "product": "chequered-red-shirt"
+          }
+        },
+        "p4": {
+          "type": "product",
+          "settings": {
+            "product": "classic-leather-jacket"
+          }
+        },
+        "p5": {
+          "type": "product",
+          "settings": {
+            "product": "classic-varsity-top"
+          }
+        },
+        "p6": {
+          "type": "product",
+          "settings": {
+            "product": "dark-denim-top"
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6"
+      ],
       "settings": {
         "heading": "Tisso vison in the wild"
-      },
-      "blocks": {
-        "p1": { "type": "product", "settings": {} },
-        "p2": { "type": "product", "settings": {} },
-        "p3": { "type": "product", "settings": {} },
-        "p4": { "type": "product", "settings": {} },
-        "p5": { "type": "product", "settings": {} },
-        "p6": { "type": "product", "settings": {} }
-      },
-      "block_order": ["p1","p2","p3","p4","p5","p6"]
+      }
     }
   },
-  "order": ["gift_guide_banner","gift_guide_grid"]
+  "order": [
+    "gift_guide_banner",
+    "gift_guide_grid"
+  ]
 }
