@@ -552,7 +552,9 @@
 
     // Special rule: Black + Medium also adds the Soft Winter Jacket
     function shouldAddJacket() {
-      return selectedColor === 'Black' && selectedSize === 'Medium';
+      var size = (selectedSize || '').toLowerCase();
+      var isMedium = (size === 'm' || size === 'medium');
+      return selectedColor === 'Black' && isMedium;
     }
 
     function fetchProduct(handle) {
