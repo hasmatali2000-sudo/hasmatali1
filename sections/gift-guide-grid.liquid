@@ -540,12 +540,11 @@
      * @returns {string}
      */
     function formatMoney(cents) {
-      // Shopify product.js prices are in cents; format with Rupee symbol
-      var amount = (cents / 100).toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-      return '₹' + amount;
+      var amount = (cents / 100).toFixed(2);
+      return MONEY_FORMAT
+        .replace('{{amount}}', amount)
+        .replace('{{amount_no_decimals}}', Math.floor(cents / 100))
+        .replace('{{amount_with_comma_separator}}', amount.replace('.', ','));
     }
 
     /* ── Utility: Strip HTML from description ──────────────── */
@@ -692,7 +691,7 @@
         label.textContent = optionName + ':';
         group.appendChild(label);
 
-        var isSize = /size/i.test(optionName);
+        var isSize = /size/i.test(optName);
 
         if (isSize) {
           /* ── Size dropdown ── */
